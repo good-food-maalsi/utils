@@ -12,3 +12,6 @@ export {
     authMiddleware,
     extractRoles,
 } from './auth.middleware';
+
+// MQ exports
+export { RabbitMQ } from './mq/pubsub';
