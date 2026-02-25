@@ -1,6 +1,6 @@
 {
   "name": "@good-food/utils",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Shared utilities library for Good Food microservices",
   "type": "module",
   "main": "dist/index.js",
