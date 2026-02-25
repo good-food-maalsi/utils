@@ -1,0 +1,9 @@
+# Ignores for npm publish
+.env
+.env.*
+.github/
+.idea/
+.vscode/
+tests/
+jest.config.js
+tsconfig.json
