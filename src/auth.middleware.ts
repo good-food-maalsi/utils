@@ -1,11 +1,11 @@
-import { Elysia } from 'elysia';
-import { importSPKI, jwtVerify, type JWTPayload } from 'jose';
+import { Elysia } from "elysia";
+import { importSPKI, jwtVerify, type JWTPayload } from "jose";
 
 export enum Role {
-    ADMIN = 'ADMIN',
-    FRANCHISE_OWNER = 'FRANCHISE_OWNER',
-    STAFF = 'STAFF',
-    CUSTOMER = 'CUSTOMER',
+    ADMIN = "ADMIN",
+    FRANCHISE_OWNER = "FRANCHISE_OWNER",
+    STAFF = "STAFF",
+    CUSTOMER = "CUSTOMER",
 }
 
 export interface UserPayload extends JWTPayload {
@@ -27,85 +27,172 @@ export interface AuthMiddlewareOptions {
 export const createAuthMiddleware = (options: AuthMiddlewareOptions = {}) => {
     const { allowedRoles } = options;
 
-    return new Elysia({ name: 'auth-middleware' })
-        .derive({ as: 'global' }, async ({ headers }): Promise<{ user: UserPayload | null }> => {
-            const authHeader = headers['authorization'];
-            
-            if (!authHeader?.startsWith('Bearer ')) {
-                return { user: null };
-            }
+    return new Elysia({ name: "auth-middleware" })
+        .derive(
+            { as: "global" },
+            async ({ headers }): Promise<{ user: UserPayload | null }> => {
+                const authHeader = headers["authorization"];
 
-            const token = authHeader.split(' ')[1];
-            if (!token) {
-                return { user: null };
-            }
-
-            try {
-                const publicKeyBase64 = process.env.JWT_PUBLIC_KEY_BASE64;
-                if (!publicKeyBase64) {
-                    console.error('auth-middleware: JWT_PUBLIC_KEY_BASE64 environment variable is not set');
+                if (!authHeader?.startsWith("Bearer ")) {
                     return { user: null };
                 }
 
-                const publicKeyContent = Buffer.from(publicKeyBase64, 'base64').toString('utf-8');
-                const publicKey = await importSPKI(publicKeyContent, 'RS256');
-                const { payload } = await jwtVerify(token, publicKey);
-                
-                return { user: payload as UserPayload };
-            } catch (error) {
-                console.error('auth-middleware: Token verification failed', error);
-                return { user: null };
-            }
-        })
-        .onBeforeHandle({ as: 'global' }, async ({ headers, set }) => {
-            const authHeader = headers['authorization'];
+                const token = authHeader.split(" ")[1];
+                if (!token) {
+                    return { user: null };
+                }
 
-            if (!authHeader?.startsWith('Bearer ')) {
+                try {
+                    const publicKeyBase64 = process.env.JWT_PUBLIC_KEY_BASE64;
+                    if (!publicKeyBase64) {
+                        console.error(
+                            "auth-middleware: JWT_PUBLIC_KEY_BASE64 environment variable is not set",
+                        );
+                        return { user: null };
+                    }
+
+                    let publicKeyContent = publicKeyBase64.trim();
+
+                    // If it doesn't look like a PEM yet, try decoding from base64
+                    if (
+                        !publicKeyContent.startsWith(
+                            "-----BEGIN PUBLIC KEY-----",
+                        )
+                    ) {
+                        publicKeyContent = Buffer.from(
+                            publicKeyBase64,
+                            "base64",
+                        )
+                            .toString("utf-8")
+                            .trim();
+                    }
+
+                    // Construct proper PEM if it only contains the base64 payload
+                    if (
+                        !publicKeyContent.startsWith(
+                            "-----BEGIN PUBLIC KEY-----",
+                        )
+                    ) {
+                        const cleanKey = publicKeyContent
+                            .replace(/\\n/g, "")
+                            .replace(/\s+/g, "");
+                        const formattedKey =
+                            cleanKey.match(/.{1,64}/g)?.join("\n") || cleanKey;
+                        publicKeyContent = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
+                    } else {
+                        // If it is already a PEM, just fix escaped or literal newlines
+                        publicKeyContent = publicKeyContent
+                            .replace(/\\n/g, "\n")
+                            .replace(/\r\n/g, "\n");
+                    }
+
+                    const publicKey = await importSPKI(
+                        publicKeyContent,
+                        "RS256",
+                    );
+                    const { payload } = await jwtVerify(token, publicKey);
+
+                    return { user: payload as UserPayload };
+                } catch (error) {
+                    console.error(
+                        "auth-middleware: Token verification failed",
+                        error,
+                    );
+                    return { user: null };
+                }
+            },
+        )
+        .onBeforeHandle({ as: "global" }, async ({ headers, set }) => {
+            const authHeader = headers["authorization"];
+
+            if (!authHeader?.startsWith("Bearer ")) {
                 set.status = 401;
-                return { message: 'Unauthorized - No Token' };
+                return { message: "Unauthorized - No Token" };
             }
 
-            const token = authHeader.split(' ')[1];
+            const token = authHeader.split(" ")[1];
 
             if (!token) {
                 set.status = 401;
-                return { message: 'Unauthorized - Empty Token' };
+                return { message: "Unauthorized - Empty Token" };
             }
 
             try {
                 const publicKeyBase64 = process.env.JWT_PUBLIC_KEY_BASE64;
                 if (!publicKeyBase64) {
-                    console.error('auth-middleware: JWT_PUBLIC_KEY_BASE64 environment variable is not set');
+                    console.error(
+                        "auth-middleware: JWT_PUBLIC_KEY_BASE64 environment variable is not set",
+                    );
                     set.status = 500;
-                    return { message: 'Internal Server Error - Missing configuration' };
+                    return {
+                        message:
+                            "Internal Server Error - Missing configuration",
+                    };
                 }
 
-                const publicKeyContent = Buffer.from(publicKeyBase64, 'base64').toString('utf-8');
-                const publicKey = await importSPKI(publicKeyContent, 'RS256');
+                let publicKeyContent = publicKeyBase64.trim();
+
+                // If it doesn't look like a PEM yet, try decoding from base64
+                if (
+                    !publicKeyContent.startsWith("-----BEGIN PUBLIC KEY-----")
+                ) {
+                    publicKeyContent = Buffer.from(publicKeyBase64, "base64")
+                        .toString("utf-8")
+                        .trim();
+                }
+
+                // Construct proper PEM if it only contains the base64 payload
+                if (
+                    !publicKeyContent.startsWith("-----BEGIN PUBLIC KEY-----")
+                ) {
+                    const cleanKey = publicKeyContent
+                        .replace(/\\n/g, "")
+                        .replace(/\s+/g, "");
+                    const formattedKey =
+                        cleanKey.match(/.{1,64}/g)?.join("\n") || cleanKey;
+                    publicKeyContent = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
+                } else {
+                    // If it is already a PEM, just fix escaped or literal newlines
+                    publicKeyContent = publicKeyContent
+                        .replace(/\\n/g, "\n")
+                        .replace(/\r\n/g, "\n");
+                }
+
+                const publicKey = await importSPKI(publicKeyContent, "RS256");
                 const { payload } = await jwtVerify(token, publicKey);
 
                 // Check role if allowedRoles is specified
                 if (allowedRoles && allowedRoles.length > 0) {
                     const roleEntries = (payload as UserPayload).role;
-                    const userRoles = roleEntries
-                        ?.map(entry => entry.role?.role as Role)
-                        .filter(Boolean) ?? [];
+                    const userRoles =
+                        roleEntries
+                            ?.map((entry) => entry.role?.role as Role)
+                            .filter(Boolean) ?? [];
 
-                    const hasPermission = userRoles.some(role => allowedRoles.includes(role));
+                    const hasPermission = userRoles.some((role) =>
+                        allowedRoles.includes(role),
+                    );
 
                     if (!hasPermission) {
-                        console.warn('auth-middleware: Insufficient permissions. Required:', allowedRoles, 'Got:', userRoles);
+                        console.warn(
+                            "auth-middleware: Insufficient permissions. Required:",
+                            allowedRoles,
+                            "Got:",
+                            userRoles,
+                        );
                         set.status = 403;
-                        return { message: 'Forbidden - Insufficient permissions' };
+                        return {
+                            message: "Forbidden - Insufficient permissions",
+                        };
                     }
                 }
 
                 // Authentication successful, continue to handler
                 return;
             } catch (error) {
-                console.error('auth-middleware: Verification failed', error);
+                console.error("auth-middleware: Verification failed", error);
                 set.status = 401;
-                return { message: 'Unauthorized - Invalid Token' };
+                return { message: "Unauthorized - Invalid Token" };
             }
         });
 };
@@ -123,7 +210,5 @@ export const authMiddleware = createAuthMiddleware();
  */
 export const extractRoles = (user: UserPayload | null): Role[] => {
     if (!user?.role) return [];
-    return user.role
-        .map(entry => entry.role?.role as Role)
-        .filter(Boolean);
+    return user.role.map((entry) => entry.role?.role as Role).filter(Boolean);
 };
