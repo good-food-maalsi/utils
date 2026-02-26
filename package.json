@@ -1,6 +1,6 @@
 {
   "name": "@good-food/utils",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Shared utilities library for Good Food microservices",
   "type": "module",
   "main": "dist/index.js",
@@ -16,7 +16,7 @@
     }
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun && tsc --emitDeclarationOnly",
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun --external jose && tsc --emitDeclarationOnly",
     "dev": "bun --watch src/index.ts",
     "test": "bun test",
     "lint": "eslint src/",

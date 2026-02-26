@@ -88,7 +88,7 @@ export const createAuthMiddleware = (options: AuthMiddlewareOptions = {}) => {
 
                     const publicKey = await importSPKI(
                         publicKeyContent,
-                        "RS256",
+                        "ES256",
                     );
                     const { payload } = await jwtVerify(token, publicKey);
 
@@ -158,7 +158,7 @@ export const createAuthMiddleware = (options: AuthMiddlewareOptions = {}) => {
                         .replace(/\r\n/g, "\n");
                 }
 
-                const publicKey = await importSPKI(publicKeyContent, "RS256");
+                const publicKey = await importSPKI(publicKeyContent, "ES256");
                 const { payload } = await jwtVerify(token, publicKey);
 
                 // Check role if allowedRoles is specified
