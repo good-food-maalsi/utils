@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
-import { importSPKI, jwtVerify, type JWTPayload } from "jose";
+import { jwtVerify, type JWTPayload } from "jose";
+import { createPublicKey } from "crypto";
 
 export enum Role {
     ADMIN = "ADMIN",
@@ -86,10 +87,11 @@ export const createAuthMiddleware = (options: AuthMiddlewareOptions = {}) => {
                             .replace(/\r\n/g, "\n");
                     }
 
-                    const publicKey = await importSPKI(
-                        publicKeyContent,
-                        "ES256",
-                    );
+                    const publicKey = createPublicKey({
+                        key: publicKeyContent,
+                        format: "pem",
+                        type: "spki",
+                    });
                     const { payload } = await jwtVerify(token, publicKey);
 
                     return { user: payload as UserPayload };
@@ -158,7 +160,11 @@ export const createAuthMiddleware = (options: AuthMiddlewareOptions = {}) => {
                         .replace(/\r\n/g, "\n");
                 }
 
-                const publicKey = await importSPKI(publicKeyContent, "ES256");
+                const publicKey = createPublicKey({
+                    key: publicKeyContent,
+                    format: "pem",
+                    type: "spki",
+                });
                 const { payload } = await jwtVerify(token, publicKey);
 
                 // Check role if allowedRoles is specified
